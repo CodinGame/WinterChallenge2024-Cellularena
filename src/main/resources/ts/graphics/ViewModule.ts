@@ -75,6 +75,7 @@ export class ViewModule {
 
   layersMap: Record<string, PIXI.Container>
   wallLayer: PIXI.Container
+  gameZone: PIXI.Container
 
   constructor () {
     window.debug = this
@@ -548,8 +549,10 @@ export class ViewModule {
           if (text !== '') {
             const messageIdx = Math.min(this.messages[0].length-1, nucleusIdx[player.index]++)
             const message = this.messages[player.index][messageIdx]
-            const {x,y} = this.toBoardPos(organData.pos)
-            message.updateText(text, x, y)
+            const boardPos = this.toBoardPos(organData.pos)
+            let globalPoint = this.gameZone.toGlobal(boardPos)
+            let containerPoint = this.container.toLocal(globalPoint)
+            message.updateText(text, containerPoint.x, containerPoint.y)
           }
         }
       }
@@ -706,12 +709,14 @@ export class ViewModule {
     const gameHeight = this.globalData.height * this.tileSizeWithGrid
     gameZone.x += (GAME_ZONE_RECT.w - gameWidth) / 2
     gameZone.y += (GAME_ZONE_RECT.h - gameHeight) / 2
+    this.gameZone = gameZone
 
 
-    gameZone.addChild(messageLayer)
+    // gameZone.addChild(messageLayer)
     container.addChild(background)
     container.addChild(gameZone)
     container.addChild(hud)
+    container.addChild(messageLayer)
     container.addChild(tooltipLayer)
 
     container.interactive = true

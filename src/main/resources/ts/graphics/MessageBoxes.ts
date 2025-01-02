@@ -2,6 +2,7 @@ import { flagForDestructionOnReinit } from '../core/rendering.js'
 import { ViewModule } from './ViewModule.js'
 import { fit } from './utils.js'
 import * as utils from '../core/utils.js'
+import { WIDTH } from '../core/constants.js'
 
 export function renderMessageContainer (this: ViewModule, messageContainer: MessageContainer, i, step: number) {
   const playerInfo = this.globalData.players
@@ -102,10 +103,17 @@ export function initMessages (layer) {
         messageContainer.y += messageBox.offset.y * messageText.height / 16
         messageContainer.x += messageBox.offset.x + messageContainer.width / 2
 
+
         bubble.height = messageText.height * 1.2
 
         bubbleArrow.x = -messageContainer.width / 2
         bubbleArrow.visible = true
+
+        if (messageContainer.x > WIDTH - messageContainer.width/2) {
+          const diff = messageContainer.x - (WIDTH - messageContainer.width / 2)
+          messageContainer.x -= diff
+          bubbleArrow.x += diff
+        }
 
         if (messageText.height > 50) {
           bubble.y = -18
