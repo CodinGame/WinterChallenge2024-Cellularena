@@ -590,7 +590,7 @@ public class Game {
         // Target within map
         if (!grid.get(target).isValid()) {
             reportPlayerError(
-                String.format("%s cannot grow outside of map at (%s)", player.getNicknameToken(), target.toString())
+                String.format("%s cannot grow outside of map at %s", player.getNicknameToken(), target.toString())
             );
             return false;
         }
@@ -598,7 +598,7 @@ public class Game {
         // Target is not part of the organism
         if (grid.get(target).hasOrgan() && getRootId(grid.get(target).getOrgan().get()) == fromRootId) {
             reportPlayerError(
-                String.format("%s cannot grow onto organ at (%s)", player.getNicknameToken(), target.toString())
+                String.format("%s cannot grow onto organ at %s", player.getNicknameToken(), target.toString())
             );
             return false;
         }
@@ -628,7 +628,7 @@ public class Game {
                     if (current.hasOrgan() && getRootId(current.getOrgan().get()) == fromRootId) {
                         if (!grid.get(wholePath.get(i + 1)).hasOrgan()) {
                             pathfindingSummaryText = String.format(
-                                "%s will grow from (%s) to (%s) because (%s) is too far from id=%d",
+                                "%s will grow from %s to %s because %s is too far from id=%d",
                                 player.getNicknameToken(),
                                 current.getOrgan().get().getPos().toString(), wholePath.get(i + 1).toString(), target.toString(), fromId
                             );
@@ -649,7 +649,7 @@ public class Game {
             if (!foundPath) {
                 reportPlayerError(
                     String.format(
-                        "%s cannot grow in direction of (%s) from (%s)", player.getNicknameToken(), target.toString(), fromOrgan.pos.toString()
+                        "%s cannot grow in direction of %s from %s", player.getNicknameToken(), target.toString(), fromOrgan.pos.toString()
                     )
                 );
                 return false;
@@ -657,19 +657,41 @@ public class Game {
         }
 
         // Sporer line-of-sight
-        if (organType == OrganType.ROOT && !withinSporerRange(fromOrgan.pos, fromOrgan.direction, target)) {
-            reportPlayerError(
-                String.format(
-                    "%s (%s) is not to the %s of (%s)", player.getNicknameToken(), target.toString(), fromOrgan.direction, fromOrgan.pos.toString()
-                )
-            );
+        int withinSporeRangeCode = withinSporerRange(fromOrgan.pos, fromOrgan.direction, target);
+        if (organType == OrganType.ROOT && withinSporeRangeCode != SPORE_OK) {
+            if (withinSporeRangeCode == SPORE_HIT_WALL) {
+                reportPlayerError(
+                    String.format(
+                        "%s cannot spore from %s to %s because an obstacle is in the way",
+                        player.getNicknameToken(),
+                        fromOrgan.pos.toString(),
+                        target.toString()
+                    )
+                );
+            } else if (withinSporeRangeCode == SPORE_MISALIGNED) {
+                reportPlayerError(
+                    String.format(
+                        "%s %s is not to the %s of %s", player.getNicknameToken(), target.toString(), fromOrgan.direction,
+                        fromOrgan.pos.toString()
+                    )
+                );
+            } else {
+                reportPlayerError(
+                    String.format(
+                        "%s cannot spore from %s to %s because it is unreachable",
+                        player.getNicknameToken(),
+                        fromOrgan.pos.toString(),
+                        target.toString()
+                    )
+                );
+            }
             return false;
         }
 
         // Target is free of obstacles
         if (grid.get(target).isObstacle()) {
             reportPlayerError(
-                String.format("%s cannot grow onto obstacle at (%s)", player.getNicknameToken(), target.toString())
+                String.format("%s cannot grow onto obstacle at %s", player.getNicknameToken(), target.toString())
             );
             return false;
         }
@@ -677,7 +699,7 @@ public class Game {
         // Target is free of organs
         if (grid.get(target).hasOrgan()) {
             reportPlayerError(
-                String.format("%s cannot grow onto organ at (%s)", player.getNicknameToken(), target.toString())
+                String.format("%s cannot grow onto organ at %s", player.getNicknameToken(), target.toString())
             );
             return false;
         }
@@ -690,7 +712,7 @@ public class Game {
 
             if (t.hasTentacle(foe, target)) {
                 reportPlayerError(
-                    String.format("%s cannot grow in front of tentacle at (%s)", player.getNicknameToken(), target.toString())
+                    String.format("%s cannot grow in front of tentacle at %s", player.getNicknameToken(), target.toString())
                 );
                 return false;
             }
@@ -730,28 +752,33 @@ public class Game {
         return current.id;
     }
 
-    private boolean withinSporerRange(Coord origin, Direction direction, Coord target) {
+    private static int SPORE_OK = 0;
+    private static int SPORE_HIT_WALL = 1;
+    private static int SPORE_MISALIGNED = 2;
+    private static int SPORE_NOT_FOUND = 3;
+
+    private int withinSporerRange(Coord origin, Direction direction, Coord target) {
         int dx = direction.coord.getX();
         int dy = direction.coord.getY();
         boolean inDirection = dx == Math.signum(target.getX() - origin.getX())
             && dy == Math.signum(target.getY() - origin.getY());
 
         if (SPORE_OVER_OBSTACLES) {
-            return inDirection;
+            return inDirection ? SPORE_OK : SPORE_MISALIGNED;
         } else if (inDirection) {
             Coord cur = origin;
             while (!cur.equals(target)) {
                 cur = cur.add(direction.coord);
                 if (cur.equals(target)) {
-                    return true;
+                    return SPORE_OK;
                 }
                 Tile t = grid.get(cur);
                 if (t.isObstacle() || t.hasOrgan()) {
-                    return false;
+                    return SPORE_HIT_WALL;
                 }
             }
         }
-        return false;
+        return inDirection ? SPORE_NOT_FOUND : SPORE_MISALIGNED;
     }
 
     private Organ getOrganById(Integer id) {
@@ -871,7 +898,8 @@ public class Game {
                 final String[] scoreTexts = new String[2];
                 players.stream()
                     .forEach(player -> {
-                        scoreTexts[player.getIndex()] = String.format("%d points | %d sidequest points", player.getScore(), wallPoints[player.getIndex()]);
+                        scoreTexts[player.getIndex()] = String
+                            .format("%d points | %d sidequest points", player.getScore(), wallPoints[player.getIndex()]);
                     });
                 endScreenModule.setScores(scores, scoreTexts);
             } else {
@@ -933,7 +961,7 @@ public class Game {
         gameManager.putMetadata("deniedSpore", deniedSporeCounter);
         gameManager.putMetadata("doubleDeniedSpores", doubleDeniedSporesCounter);
         gameManager.putMetadata("gameLength", this.turn);
-        
+
         gameManager.putMetadata("wallPoints_0", wallPoints[0]);
         gameManager.putMetadata("wallPoints_1", wallPoints[1]);
 
