@@ -1,0 +1,103 @@
+import { flagForDestructionOnReinit } from '../core/rendering.js';
+import { WIDTH } from '../core/constants.js';
+export function renderMessageContainer(messageContainer, i, step) {
+    const playerInfo = this.globalData.players;
+    const options = this.api.options;
+    const stepFactor = Math.pow(0.99, step);
+    const targetMessageAlpha = (options.showMyMessages && playerInfo[i].isMe) || (options.showOthersMessages && !playerInfo[i].isMe) ? 1
+        : 0;
+    messageContainer.alpha = messageContainer.alpha * stepFactor + targetMessageAlpha * (1 - stepFactor);
+}
+export const messageBox = {
+    width: 150,
+    offset: {
+        x: 36,
+        y: -8
+    }
+};
+export function initMessages(layer) {
+    const self = this;
+    self.messages = [];
+    for (let i = 0; i < self.globalData.playerCount; ++i) {
+        self.messages[i] = [];
+        const messageGroup = new PIXI.Container();
+        for (let k = 0; k < 10; ++k) { //TODO: no hard limit
+            const messageContainer = new PIXI.Container();
+            const baseScale = 0.5699481865284974;
+            const bubble = new PIXI.Container();
+            const bubbleLeft = PIXI.Sprite.from('dial_side.png');
+            const bubbleRight = PIXI.Sprite.from('dial_side.png');
+            const bubbleMid = PIXI.Sprite.from('dial_mid.png');
+            const bubbleArrow = PIXI.Sprite.from('dial_arrow.png');
+            bubbleLeft.anchor.y = 0.5;
+            bubbleRight.anchor.y = 0.5;
+            bubbleMid.anchor.y = 0.5;
+            bubbleLeft.scale.set(-baseScale, baseScale);
+            bubbleRight.scale.set(baseScale, baseScale);
+            bubbleMid.scale.set(baseScale, baseScale);
+            bubbleArrow.scale.set(baseScale, baseScale);
+            bubble.y = -18;
+            bubbleArrow.y = bubbleMid.height / 2 - 5;
+            bubbleArrow.x = -25;
+            bubble.addChild(bubbleLeft);
+            bubble.addChild(bubbleRight);
+            bubble.addChild(bubbleMid);
+            bubble.addChild(bubbleArrow);
+            const textStyle = {
+                fontFamily: 'Arial',
+                fontWeight: '700',
+                fontSize: 46,
+                fill: self.globalData.players[i].color,
+                align: 'center',
+                wordWrap: true,
+                wordWrapWidth: 90
+            };
+            const messageText = new PIXI.Text('', textStyle);
+            messageText.anchor.x = 0.5;
+            messageText.anchor.y = 0.5;
+            messageText.y = -20;
+            flagForDestructionOnReinit(messageText);
+            messageContainer.messageText = messageText;
+            messageContainer.updateText = (text, x, y) => {
+                bubbleArrow.visible = false;
+                bubble.visible = (!!text);
+                messageText.text = text;
+                const maxHeight = 150;
+                if (messageText.height > maxHeight) {
+                    while (messageText.text.length > 3 && messageText.height > maxHeight) {
+                        messageText.text = messageText.text.slice(0, -4) + '...';
+                    }
+                }
+                const w = messageText.width;
+                bubbleLeft.x = -w / 2;
+                bubbleRight.x = w / 2;
+                bubbleMid.x = -w / 2;
+                bubbleMid.width = w;
+                messageContainer.position.set(x, y);
+                messageContainer.y += messageBox.offset.y * messageText.height / 16;
+                messageContainer.x += messageBox.offset.x + messageContainer.width / 2;
+                bubble.height = messageText.height * 1.2;
+                bubbleArrow.x = -messageContainer.width / 2;
+                bubbleArrow.visible = true;
+                if (messageContainer.x > WIDTH - messageContainer.width / 2) {
+                    const diff = messageContainer.x - (WIDTH - messageContainer.width / 2);
+                    messageContainer.x -= diff;
+                    bubbleArrow.x += diff;
+                }
+                if (messageText.height > 50) {
+                    bubble.y = -18;
+                    messageText.y = -20;
+                }
+                else {
+                    bubble.y = 0;
+                    messageText.y = 0;
+                }
+            };
+            messageContainer.addChild(bubble);
+            messageContainer.addChild(messageText);
+            self.messages[i].push(messageContainer);
+            messageGroup.addChild(messageContainer);
+        }
+        layer.addChild(messageGroup);
+    }
+}

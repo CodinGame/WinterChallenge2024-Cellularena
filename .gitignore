@@ -6,9 +6,7 @@
 /.settings/
 statement_en.html
 statement_fr.html
-src/main/resources/view/node_modules/
-src/main/resources/view/graphics/
-src/main/resources/view/endscreen-module/
+src/main/resources/node_modules/
 bots/NN
 best.pkl
 last_generation_fitness.txt
